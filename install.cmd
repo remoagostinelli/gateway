@@ -56,10 +56,10 @@ if (Test-Path "requirements.txt") {
 $parentProcessID = (Get-WmiObject Win32_Process -Filter "ProcessId=$PID").ParentProcessId
 
 function Handle-UserInput {
-	while (([int]$selection - 48) -notin 0..$options.Length) {
-		$selection = [Console]::ReadKey($true).KeyChar
+	while (([int]$choice - 48) -notin 0..$options.Length) {
+		$choice = [Console]::ReadKey($true).KeyChar
 	}
-	if ($selection -eq '0') {
+	if ($choice -eq "0") {
 		Stop-Process -Id $parentProcessID
 		Stop-Process -Id $PID
 	}
@@ -261,7 +261,7 @@ switch ($setup) {
 	$pw = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 	[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
 
-	# Cert Utililty
+	# Cert Utility
 	Write-Host "Downloading $certUtil..."
 	try {
 		Start-BitsTransfer -Source $certUtilUrl -Destination $certUtilZip
@@ -339,7 +339,7 @@ switch ($setup) {
 			$ProgressPreference = "Continue"
 		}
 	}
-	
+
 	if (!(Test-Path $disk1)) {
 		Expand-Archive -Force $zip -DestinationPath "C:\"
 		Remove-Item -Force $zip
