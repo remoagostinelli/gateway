@@ -338,6 +338,9 @@ switch ($setup) {
 			Invoke-WebRequest -Uri $url -Outfile $zip
 			$ProgressPreference = "Continue"
 		}
+	}
+	
+	if (!(Test-Path $disk1)) {
 		Expand-Archive -Force $zip -DestinationPath "C:\"
 		Remove-Item -Force $zip
 	}
