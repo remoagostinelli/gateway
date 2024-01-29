@@ -56,10 +56,16 @@ if (Test-Path "requirements.txt") {
 $parentProcessID = (Get-WmiObject Win32_Process -Filter "ProcessId=$PID").ParentProcessId
 
 function Handle-UserInput {
-	while (([int]$choice - 48) -notin 0..$options.Length) {
+	while ($true) {
 		$choice = [Console]::ReadKey($true).KeyChar
+		$regex = "^[0-$($options.Length)]$"
+		if ($choice -match $regex) {
+			$choice = $choice - 48
+			break
+		}
 	}
-	if ($choice -eq "0") {
+
+	if ($choice -eq 0) {
 		Stop-Process -Id $parentProcessID
 		Stop-Process -Id $PID
 	}
@@ -148,7 +154,7 @@ if (!($regTerm)) {
 	Start-Process msedge -ArgumentList $website
 	$regTerm = (Read-Host -Prompt "RegTerm").Trim()
 }
-if ($setup -ne "1" -and ($regTerm.Length -gt 16)) {
+if ($setup -ne 1 -and ($regTerm.Length -gt 16)) {
 	$last16 = $regTerm.Substring($regTerm.Length - 16)
 } else {
 	$last16 = $regTerm
@@ -258,12 +264,12 @@ switch ($setup) {
 		$options = @("Try again", "Skip $device", "Assume $device is connected")
 		$choice = Show-Options 
 
-		if ($choice -eq "1") {
+		if ($choice -eq 1) {
 			continue deviceLookup
-		} elseif ($choice -eq "2") {
+		} elseif ($choice -eq 2) {
 			Write-Host "Skipping $device."
 			Start-Sleep -Seconds 1
-		} elseif ($choice -eq "3") {
+		} elseif ($choice -eq 3) {
 			Write-Host "Assuming $device is connected."
 			if ($device -eq $frontDevice) {
 				$global:foundFrontDevice = $true
@@ -289,14 +295,14 @@ switch ($setup) {
 	}
 
 	:devicelookup while ($true) {
-		if ($setup -eq "2") {
+		if ($setup -eq 2) {
 			Set-Device $frontDevice
 			Set-Device $backDevice
 			break
-		} elseif ($setup -eq "3") {
+		} elseif ($setup -eq 3) {
 			Set-Device $frontDevice
 			break
-		} elseif ($setup -eq "4") {
+		} elseif ($setup -eq 4) {
 			Set-Device $backDevice
 			break
 		}
@@ -315,7 +321,7 @@ switch ($setup) {
 		$message = "$zip already exists."
 		$options = @("Use existing zip file", "Replace zip file")
 		$choice = Show-Options
-		if ($choice -eq "2") {
+		if ($choice -eq 2) {
 			Remove-Item -Recurse -Force $zip
 		}
 	}
@@ -324,7 +330,7 @@ switch ($setup) {
 		$message = "$disk1 already exists."
 		$options = @("Use existing folder", "Replace folder")
 		$choice = Show-Options
-		if ($choice -eq "2") {
+		if ($choice -eq 2) {
 			Remove-Item -Recurse -Force $disk1
 		}
 	}
@@ -380,7 +386,7 @@ switch ($setup) {
 }
 {$_ -in 2, 3, 4} {
 	Write-Host "Import certificates and press any key to continue..."
-	:certsLookup while ($true) {
+	while ($true) {
 		$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 		if ((Test-Path "$disk1\*.cer") -and (Test-Path "$disk1\*.out")) {
 			Write-Host "Certificates found."
@@ -389,12 +395,9 @@ switch ($setup) {
 			$message = "The $programShort certificates were not found in $disk1"
 			$options = @("Try again", "Skip certificates")
 			$choice = Show-Options 
-			if ($choice -eq "1") {
-				continue certsLookup
-			}
-			elseif ($choice -eq "2") {
+			elseif ($choice -eq 2) {
 				Write-Output "Skipping certificates."
-				break certsLookup
+				break
 			}
 		}
 	}
@@ -431,7 +434,7 @@ switch ($setup) {
 	$modifiedKey = $matches[0] -Replace "value=`"$currentValue`"", "value=`"$thumbprint`""
 	$text = $text -Replace $matches[0], $modifiedKey
 	Set-Content -Path $serverConfig -Value $text
-	Restart-Service $serverService
+	Restart-Service -Verbose $serverService
 	Write-Host "Thumbprint successfully applied to the server configuration file."
 	Get-Content $serverConfig | Select-String -Pattern $thumbprint
 }
@@ -446,48 +449,44 @@ switch ($setup) {
 	$modifiedWorkstationId = $matches[0] -Replace "value=`"$currentValue`"", "value=`"$last16`""
 	$text = $text -Replace $matches[0], $modifiedWorkstationId
 	Set-Content -Path $clientConfig -Value $text
-	Restart-Service $clientService
+	Restart-Service -Verbose $clientService
 	Get-Content $clientConfig | Select-String -Pattern $last16 | ForEach-Object { $_.Line.Trim() }
 
 	Start-Process $ui
 
 	# Get serial numbers
 	if ($foundFrontDevice) {
-		:serialLookup while ($true) {
+		$message = "$frontDevice serial number was not found."
+		while ($true) {
 			try {
 				$frontDeviceSerialNumber = (Select-String -Path $log -Pattern $frontDeviceRegEx).Matches.Groups[1].Value
 				break
 			} catch {
-				while ($true) {
-					$message = "$frontDevice serial number was not found."
-					$options = @("Restart $program service", "Continue")
-					$choice = Show-Options 
-					if ($choice -eq "1") {
-						Restart-Service $clientService
-						continue serialLookup
-					} elseif ($choice -eq "2") {
-						break serialLookup
-					}	
+				$options = @("Restart $program service", "Continue")
+				$choice = Show-Options
+				if ($choice -eq 1) {
+					Restart-Service -Verbose $clientService
+					$message = "$programShort service restarted."
+				} elseif ($choice -eq 2) {
+					break
 				}
 			}
 		}
 	}
 	if ($foundBackDevice) {
-		:serialLookup while ($true) {
+		$message = "$backDevice serial number was not found."
+		while ($true) {
 			try {
 				$backDeviceSerialNumber = (Select-String -Path $log -Pattern $backDeviceRegEx).Matches.Groups[0].Value
 				break
 			} catch {
-				while ($true) {
-					$message = "$backDevice serial number was not found."
-					$options = @("Restart $program Service", "Continue")
-					$choice = Show-Options
-					if ($choice -eq "1") {
-						Restart-Service $clientService
-						continue serialLookup
-					} elseif ($choice -eq "2") {
-						break serialLookup
-					}	
+				$options = @("Restart $program Service", "Continue")
+				$choice = Show-Options
+				if ($choice -eq 1) {
+					Restart-Service -Verbose $clientService
+					$message = "$programShort service restarted."
+				} elseif ($choice -eq 2) {
+					break
 				}
 			}
 		}
@@ -526,7 +525,7 @@ switch ($setup) {
 
 		Set-Content -Path $laneConfig -Value $text
 		Get-Content $laneConfig | Select-String -Pattern $frontDeviceSerialNumber, $backDeviceSerialNumber
-		Restart-Service $clientService
+		Restart-Service -Verbose $clientService
 	} else {
 		Write-Host "LaneConfig does not have the devices' serial numbers."
 		Start-Sleep -Seconds 2
@@ -548,18 +547,18 @@ $options = @("Restart $program service", "Finish")
 $count = 0
 while ($true) {
 	$choice = Show-Options
-	if ($choice -eq "1") {
-		$message = "$program service restarted."
+	if ($choice -eq 1) {
+		$message = "$programShort service restarted."
 		switch ($setup) {
 		1 {
-			Restart-Service $serverService
+			Restart-Service -Verbose $serverService
 		}
 		{$_ -in 2, 3, 4} {
-			Restart-Service $clientService
+			Restart-Service -Verbose $clientService
 		}
 		}
 		$count++
-	} elseif ($choice -eq "2") {
+	} elseif ($choice -eq 2) {
 		# Print system properties
 		$properties = "$ws completed.`nIP: $ip`nHostname: $(hostname)`nRegTerm: $regTerm"
 		if ($frontDeviceSerialNumber) {
