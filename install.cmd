@@ -66,7 +66,7 @@ function Handle-UserInput {
 
 	Clear-Host
 
-	return $selection
+	return $choice
 }
 
 function Show-Options {
@@ -155,7 +155,79 @@ if ($setup -ne "1" -and ($regTerm.Length -gt 16)) {
 }
 
 switch ($setup) {
-{$_ -in "2", "3", "4"} {
+1 {
+	Write-Host "Server."
+	$ws = "Server"
+
+	# Store ID
+	while ($true) {
+		$storeID = (Read-Host -Prompt "Store ID").Trim()
+		if ($storeID.ToString().Length -eq 11) {
+			break
+		}
+	}
+
+	# DMP
+	$secureDmp = Read-Host -AsSecureString -Prompt "DMP key"
+	$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureDmp)
+	$dmp = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+	[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+
+	# Password
+	$securePassword = Read-Host -AsSecureString -Prompt "Password"
+	$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecurePassword)
+	$pw = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+	[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+
+	# Cert Utility
+	Write-Host "Downloading $certUtil..."
+	try {
+		Start-BitsTransfer -Source $certUtilUrl -Destination $certUtilZip
+	} catch {
+		$ProgressPreference = "SilentlyContinue"
+		Invoke-WebRequest -Uri $certUtilUrl -Outfile $certUtilZip
+		$ProgressPreference = "Continue"
+	}
+	Expand-Archive -Force $certUtilZip "C:\"
+	Remove-Item $certUtilZip
+
+	$pspROOT | clip
+	Write-Host "Get thumbprint and close $certUtil to continue..."
+	Start-Process $certUtilFile -Wait
+	Write-Host "$certUtil closed."
+
+	# Thumbprint
+	while ($true) {
+		$thumbprint = (Read-Host -Prompt "Thumbprint").Trim()
+		if ($thumbprint.Length -eq 40) {
+			break
+		} else {
+			Write-Host "Invalid thumbprint. Try again."
+		}
+	}
+
+	$pfxThumbprint = ((Get-ChildItem -Path "Cert:\LocalMachine\My\*") | Where-Object {$_.Thumbprint -eq $thumbprint}).Thumbprint
+	$cerThumbprint = ((Get-ChildItem -Path "Cert:\LocalMachine\Root\*") | Where-Object {$_.Thumbprint -eq $thumbprint}).Thumbprint
+
+	# Folder
+	New-Item -Force -ItemType Directory -Path $folder
+
+	# Information
+	Out-File -Force -FilePath $info
+	$lines = @("Thumbprint: $thumbprint", "Store ID: $storeID", "DMP key: $dmp", "Password: $pw", "Port: 8991")
+	foreach ($line in $lines) {
+		Add-Content -Path $info -Value $line
+	}
+
+	# Export certificates
+	Export-PfxCertificate -Cert "Cert:\LocalMachine\My\$pfxThumbprint" -FilePath "$folder\$psp.pfx" -Password $SecurePassword -ChainOption EndEntityCertOnly -NoProperties
+	Export-Certificate -Type CERT -Cert "Cert:\LocalMachine\Root\$cerThumbprint" -FilePath "$folder\$pspROOT.cer"
+	Write-Host "Exported certificates."
+	Write-Host "Saved information text file."
+	explorer $folder
+	notepad $info
+}
+{$_ -in 2, 3, 4} {
 	control printers
 	$ws = (Read-Host -Prompt "Workstation name").Trim()
 
@@ -237,79 +309,7 @@ switch ($setup) {
 		Write-Host "Found $backDevice."
 	}
 }
-1 {
-	Write-Host "Server."
-	$ws = "Server"
-
-	# Store ID
-	while ($true) {
-		$storeID = (Read-Host -Prompt "Store ID").Trim()
-		if ($storeID.ToString().Length -eq 11) {
-			break
-		}
-	}
-
-	# DMP
-	$secureDmp = Read-Host -AsSecureString -Prompt "DMP key"
-	$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureDmp)
-	$dmp = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-	[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
-
-	# Password
-	$securePassword = Read-Host -AsSecureString -Prompt "Password"
-	$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecurePassword)
-	$pw = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-	[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
-
-	# Cert Utility
-	Write-Host "Downloading $certUtil..."
-	try {
-		Start-BitsTransfer -Source $certUtilUrl -Destination $certUtilZip
-	} catch {
-		$ProgressPreference = "SilentlyContinue"
-		Invoke-WebRequest -Uri $certUtilUrl -Outfile $certUtilZip
-		$ProgressPreference = "Continue"
-	}
-	Expand-Archive -Force $certUtilZip "C:\"
-	Remove-Item $certUtilZip
-
-	$pspROOT | clip
-	Write-Host "Get thumbprint and close $certUtil to continue..."
-	Start-Process $certUtilFile -Wait
-	Write-Host "$certUtil closed."
-
-	# Thumbprint
-	while ($true) {
-		$thumbprint = (Read-Host -Prompt "Thumbprint").Trim()
-		if ($thumbprint.Length -eq 40) {
-			break
-		} else {
-			Write-Host "Invalid thumbprint. Try again."
-		}
-	}
-
-	$pfxThumbprint = ((Get-ChildItem -Path "Cert:\LocalMachine\My\*") | Where-Object {$_.Thumbprint -eq $thumbprint}).Thumbprint
-	$cerThumbprint = ((Get-ChildItem -Path "Cert:\LocalMachine\Root\*") | Where-Object {$_.Thumbprint -eq $thumbprint}).Thumbprint
-
-	# Folder
-	New-Item -Force -ItemType Directory -Path $folder
-
-	# Information
-	Out-File -Force -FilePath $info
-	$lines = @("Thumbprint: $thumbprint", "Store ID: $storeID", "DMP key: $dmp", "Password: $pw", "Port: 8991")
-	foreach ($line in $lines) {
-		Add-Content -Path $info -Value $line
-	}
-
-	# Export certificates
-	Export-PfxCertificate -Cert "Cert:\LocalMachine\My\$pfxThumbprint" -FilePath "$folder\$psp.pfx" -Password $SecurePassword -ChainOption EndEntityCertOnly -NoProperties
-	Export-Certificate -Type CERT -Cert "Cert:\LocalMachine\Root\$cerThumbprint" -FilePath "$folder\$pspROOT.cer"
-	Write-Host "Exported certificates."
-	Write-Host "Saved information text file."
-	explorer $folder
-	notepad $info
-}
-{$_ -in "1", "2", "3", "4"} {
+{$_ -in 1, 2, 3, 4} {
 	# Download and extract setup
 	if (Test-Path $zip) {
 		$message = "$zip already exists."
@@ -360,7 +360,7 @@ switch ($setup) {
 4 {
 	Write-Host "$backDevice."
 }
-{$_ -in "2", "3"} {
+{$_ -in 2, 3} {
 	# PAL packages
 	if (!(Test-Path $palFolder)) {
 		New-Item -ItemType Directory $palFolder
@@ -378,7 +378,7 @@ switch ($setup) {
 	Write-Host "PAL packages deployed."
 	break
 }
-{$_ -in "2", "3", "4"} {
+{$_ -in 2, 3, 4} {
 	Write-Host "Import certificates and press any key to continue..."
 	:certsLookup while ($true) {
 		$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
@@ -435,7 +435,7 @@ switch ($setup) {
 	Write-Host "Thumbprint successfully applied to the server configuration file."
 	Get-Content $serverConfig | Select-String -Pattern $thumbprint
 }
-{$_ -in "2", "3", "4"} {
+{$_ -in 2, 3, 4} {
 	# Apply regTerm
 	$text = Get-Content -Path $clientConfig
 	foreach ($line in $text) {
@@ -460,7 +460,7 @@ switch ($setup) {
 			} catch {
 				while ($true) {
 					$message = "$frontDevice serial number was not found."
-					$options = @("Restart $program Service", "Continue")
+					$options = @("Restart $program service", "Continue")
 					$choice = Show-Options 
 					if ($choice -eq "1") {
 						Restart-Service $clientService
@@ -544,16 +544,17 @@ switch ($setup) {
 
 notepad $log
 $message = "Installation completed."
-$options = @("Restart $program Service", "Finish")
+$options = @("Restart $program service", "Finish")
 $count = 0
 while ($true) {
 	$choice = Show-Options
 	if ($choice -eq "1") {
+		$message = "$program service restarted."
 		switch ($setup) {
 		1 {
 			Restart-Service $serverService
 		}
-		{$_ -in "2", "3", "4"} {
+		{$_ -in 2, 3, 4} {
 			Restart-Service $clientService
 		}
 		}
