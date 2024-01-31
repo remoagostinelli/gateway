@@ -382,7 +382,6 @@ switch ($setup) {
 	Expand-Archive -Force $palZip -DestinationPath $palFolder
 	Remove-Item -Force $palZip
 	Write-Host "PAL packages deployed."
-	break
 }
 {$_ -in 2, 3, 4} {
 	Write-Host "Import certificates and press any key to continue..."
