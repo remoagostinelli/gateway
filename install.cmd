@@ -452,8 +452,9 @@ switch ($setup) {
 	Get-Content $clientConfig | Select-String -Pattern $last16 | ForEach-Object { $_.Line.Trim() }
 
 	Start-Process $ui
-
-	# Get serial numbers
+}
+# Get serial numbers
+{$_ -in 2, 3}
 	if ($foundFrontDevice) {
 		$message = "$frontDevice serial number was not found."
 		while ($true) {
@@ -472,6 +473,7 @@ switch ($setup) {
 			}
 		}
 	}
+{$_ -in 2, 3, 4} {
 	if ($foundBackDevice) {
 		$message = "$backDevice serial number was not found."
 		while ($true) {
@@ -490,7 +492,8 @@ switch ($setup) {
 			}
 		}
 	}
-
+}
+2 {
 	# Lane config
 	if ($frontDeviceSerialNumber -and $backDeviceSerialNumber) {
 		$text = Get-Content -Path $laneConfig
@@ -526,16 +529,8 @@ switch ($setup) {
 		Get-Content $laneConfig | Select-String -Pattern $frontDeviceSerialNumber, $backDeviceSerialNumber
 		Restart-Service -Verbose $clientService
 	} else {
-		Write-Host "LaneConfig does not have the devices' serial numbers."
+		Write-Host "LaneConfig does not have the device serial numbers."
 		Start-Sleep -Seconds 2
-	}
-}
-4 {
-	try {
-		$backDeviceSerialNumber = (Select-String -Path $log -Pattern $backDeviceRegEx).Matches.Groups[0].Value
-	} catch {
-		Write-Output "$backDevice serial number was not found."
-		Start-Sleep -Seconds 1
 	}
 }
 }
