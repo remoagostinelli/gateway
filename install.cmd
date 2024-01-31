@@ -473,7 +473,7 @@ switch ($setup) {
 			}
 		}
 	}
-{$_ -in 2, 3, 4} {
+{$_ -in 2, 4} {
 	if ($foundBackDevice) {
 		$message = "$backDevice serial number was not found."
 		while ($true) {
