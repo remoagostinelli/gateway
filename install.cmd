@@ -385,16 +385,16 @@ switch ($setup) {
 }
 {$_ -in 2, 3, 4} {
 	Write-Host "Import certificates and press any key to continue..."
+	$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+	$message = "The $programShort certificates were not found in $disk1"
+	$options = @("Try again", "Skip certificates")
 	while ($true) {
-		$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 		if ((Test-Path "$disk1\*.cer") -and (Test-Path "$disk1\*.out")) {
 			Write-Host "Certificates found."
 			break
 		} else {
-			$message = "The $programShort certificates were not found in $disk1"
-			$options = @("Try again", "Skip certificates")
 			$choice = Show-Options 
-			elseif ($choice -eq 2) {
+			if ($choice -eq 2) {
 				Write-Output "Skipping certificates."
 				break
 			}
@@ -454,7 +454,7 @@ switch ($setup) {
 	Start-Process $ui
 }
 # Get serial numbers
-{$_ -in 2, 3}
+{$_ -in 2, 3} {
 	if ($foundFrontDevice) {
 		$message = "$frontDevice serial number was not found."
 		while ($true) {
@@ -473,6 +473,7 @@ switch ($setup) {
 			}
 		}
 	}
+}
 {$_ -in 2, 4} {
 	if ($foundBackDevice) {
 		$message = "$backDevice serial number was not found."
