@@ -457,12 +457,12 @@ switch ($setup) {
 {$_ -in 2, 3} {
 	if ($foundFrontDevice) {
 		$message = "$frontDevice serial number was not found."
+		$options = @("Restart $program service", "Continue")
 		while ($true) {
 			try {
 				$frontDeviceSerialNumber = (Select-String -Path $log -Pattern $frontDeviceRegEx).Matches.Groups[1].Value
 				break
 			} catch {
-				$options = @("Restart $program service", "Continue")
 				$choice = Show-Options
 				if ($choice -eq 1) {
 					Restart-Service -Verbose $clientService
@@ -477,12 +477,12 @@ switch ($setup) {
 {$_ -in 2, 4} {
 	if ($foundBackDevice) {
 		$message = "$backDevice serial number was not found."
+		$options = @("Restart $program Service", "Continue")
 		while ($true) {
 			try {
 				$backDeviceSerialNumber = (Select-String -Path $log -Pattern $backDeviceRegEx).Matches.Groups[0].Value
 				break
 			} catch {
-				$options = @("Restart $program Service", "Continue")
 				$choice = Show-Options
 				if ($choice -eq 1) {
 					Restart-Service -Verbose $clientService
